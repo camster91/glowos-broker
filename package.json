@@ -1,0 +1,21 @@
+{
+  "name": "glowos-broker",
+  "version": "1.0.0",
+  "description": "GlowOS WebSocket broker relay service",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "fastify": "^5.2.0",
+    "@fastify/websocket": "^11.0.0",
+    "@fastify/cors": "^10.0.0",
+    "@fastify/rate-limit": "^10.0.0",
+    "bcrypt": "^5.1.1",
+    "jose": "^6.0.0",
+    "pg": "^8.13.0",
+    "nanoid": "^5.0.0"
+  }
+}
