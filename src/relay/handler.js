@@ -62,8 +62,8 @@ export default async function relayRoutes(app) {
       gatewayConnections.delete(userId);
     });
 
-    // Send a hello so the gateway knows it's connected
-    socket.send(JSON.stringify({ type: 'broker.hello', version: '1.0.0' }));
+    // Don't send anything to gateway — it creates OpenClaw connections on-demand
+    // when PWA clients send messages
   });
 
   // PWA client connects here
