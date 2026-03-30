@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import { nanoid } from 'nanoid';
 import { query } from '../db/client.js';
 import { signToken, verifyToken } from './jwt.js';
+import { sendWelcome, sendPairingCode } from '../email.js';
 
 export default async function authRoutes(app) {
   // Sign up
@@ -28,6 +29,11 @@ export default async function authRoutes(app) {
     );
 
     const jwt = await signToken({ userId: user.id, email: user.email });
+
+    // Send welcome + pairing code emails (non-blocking)
+    sendWelcome(user.email, user.name).catch(() => {});
+    sendPairingCode(user.email, user.name, gatewayToken.slice(0, 8).toUpperCase()).catch(() => {});
+
     return { token: jwt, user: { id: user.id, email: user.email, name: user.name }, gatewayToken };
   });
 
