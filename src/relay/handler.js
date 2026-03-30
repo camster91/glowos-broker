@@ -1,9 +1,33 @@
 import { query } from '../db/client.js';
 import { verifyToken } from '../auth/jwt.js';
 
+const MAX_MESSAGE_SIZE = 1 * 1024 * 1024; // 1MB
+
 // In-memory maps for live WebSocket connections
 const gatewayConnections = new Map();  // userId -> ws
 const clientConnections = new Map();   // userId -> Set<ws>
+
+// Ping/pong heartbeat
+const PING_INTERVAL = 30000;
+const PONG_TIMEOUT = 10000;
+
+function setupHeartbeat(socket, label, onDead) {
+  let pongReceived = true;
+  const interval = setInterval(() => {
+    if (!pongReceived) {
+      clearInterval(interval);
+      try { socket.close(4000, 'Ping timeout'); } catch {}
+      if (onDead) onDead();
+      return;
+    }
+    pongReceived = false;
+    try { socket.ping(); } catch {}
+  }, PING_INTERVAL);
+
+  socket.on('pong', () => { pongReceived = true; });
+  socket.on('close', () => clearInterval(interval));
+  socket.on('error', () => clearInterval(interval));
+}
 
 export function getGatewayStatus(userId) {
   return gatewayConnections.has(userId) ? 'online' : 'offline';
@@ -41,8 +65,23 @@ export default async function relayRoutes(app) {
 
     app.log.info(`Gateway connected for user ${userId}`);
 
+    setupHeartbeat(socket, `gateway:${userId}`, () => {
+      gatewayConnections.delete(userId);
+      query('UPDATE gateways SET status = $1 WHERE user_id = $2', ['offline', userId]).catch(() => {});
+      app.log.info(`Gateway ping timeout for user ${userId}`);
+    });
+
+    // Notify PWA clients that gateway is now online
+    const existingClients = clientConnections.get(userId);
+    if (existingClients) {
+      for (const c of existingClients) {
+        if (c.readyState === 1) c.send(JSON.stringify({ type: 'broker.status', gateway: 'online' }));
+      }
+    }
+
     // Forward messages from gateway to all connected PWA clients
     socket.on('message', (msg) => {
+      if (msg.length > MAX_MESSAGE_SIZE) return;
       const clients = clientConnections.get(userId);
       if (clients) {
         const data = msg.toString();
@@ -93,6 +132,14 @@ export default async function relayRoutes(app) {
 
     app.log.info(`PWA client connected for user ${userId}`);
 
+    setupHeartbeat(socket, `client:${userId}`, () => {
+      const clients = clientConnections.get(userId);
+      if (clients) {
+        clients.delete(socket);
+        if (clients.size === 0) clientConnections.delete(userId);
+      }
+    });
+
     // Check if gateway is online
     const gw = gatewayConnections.get(userId);
     if (!gw || gw.readyState !== 1) {
@@ -103,6 +150,10 @@ export default async function relayRoutes(app) {
 
     // Forward messages from PWA client to gateway
     socket.on('message', (msg) => {
+      if (msg.length > MAX_MESSAGE_SIZE) {
+        socket.send(JSON.stringify({ type: 'broker.error', error: 'Message too large (1MB limit)' }));
+        return;
+      }
       const gw = gatewayConnections.get(userId);
       if (gw && gw.readyState === 1) {
         gw.send(msg.toString());

@@ -24,6 +24,24 @@ app.get('/health', () => ({ status: 'ok', service: 'glowos-broker', version: '1.
 // Root
 app.get('/', () => ({ name: 'GlowOS Broker', version: '1.0.0' }));
 
+// Graceful shutdown
+async function shutdown(signal) {
+  app.log.info(`${signal} received, shutting down...`);
+  try {
+    await app.close(); // closes HTTP server + all WebSocket connections
+  } catch (err) {
+    app.log.error('Error during close:', err);
+  }
+  try {
+    const pool = (await import('./db/client.js')).default;
+    await pool.end();
+  } catch {}
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
 // Start
 try {
   await initDb();

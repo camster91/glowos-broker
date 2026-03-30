@@ -73,11 +73,12 @@ export default async function authRoutes(app) {
       const result = await query('SELECT id, email, name FROM users WHERE id = $1', [payload.userId]);
       if (!result.rows.length) return reply.status(401).send({ error: 'User not found' });
 
-      const gw = await query('SELECT status, last_seen_at FROM gateways WHERE user_id = $1 LIMIT 1', [payload.userId]);
+      const gw = await query('SELECT status, last_seen_at, auth_token FROM gateways WHERE user_id = $1 LIMIT 1', [payload.userId]);
 
       return {
         user: result.rows[0],
-        gateway: gw.rows[0] || null
+        gateway: gw.rows[0] ? { status: gw.rows[0].status, last_seen_at: gw.rows[0].last_seen_at } : null,
+        gatewayToken: gw.rows[0]?.auth_token || null
       };
     } catch {
       return reply.status(401).send({ error: 'Invalid token' });
