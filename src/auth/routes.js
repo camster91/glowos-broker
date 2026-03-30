@@ -9,6 +9,7 @@ export default async function authRoutes(app) {
   app.post('/auth/signup', async (req, reply) => {
     const { email, password, name } = req.body || {};
     if (!email || !password) return reply.status(400).send({ error: 'Email and password required' });
+    if (!email.includes('@')) return reply.status(400).send({ error: 'Invalid email address' });
     if (password.length < 6) return reply.status(400).send({ error: 'Password must be 6+ characters' });
 
     const existing = await query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
@@ -31,8 +32,9 @@ export default async function authRoutes(app) {
     const jwt = await signToken({ userId: user.id, email: user.email });
 
     // Send welcome + pairing code emails (non-blocking)
-    sendWelcome(user.email, user.name).catch(() => {});
-    sendPairingCode(user.email, user.name, gatewayToken.slice(0, 8).toUpperCase()).catch(() => {});
+    const safeName = (user.name || '').replace(/[<>&"']/g, '');
+    sendWelcome(user.email, safeName).catch(() => {});
+    sendPairingCode(user.email, safeName, gatewayToken.slice(0, 8).toUpperCase()).catch(() => {});
 
     return { token: jwt, user: { id: user.id, email: user.email, name: user.name }, gatewayToken };
   });
@@ -41,8 +43,9 @@ export default async function authRoutes(app) {
   app.post('/auth/login', async (req, reply) => {
     const { email, password } = req.body || {};
     if (!email || !password) return reply.status(400).send({ error: 'Email and password required' });
+    if (!email.includes('@')) return reply.status(400).send({ error: 'Invalid email address' });
 
-    const result = await query('SELECT * FROM users WHERE email = $1', [email.toLowerCase()]);
+    const result = await query('SELECT id, email, name, password_hash FROM users WHERE email = $1', [email.toLowerCase()]);
     if (!result.rows.length) return reply.status(401).send({ error: 'Invalid credentials' });
 
     const user = result.rows[0];
@@ -70,7 +73,7 @@ export default async function authRoutes(app) {
       const result = await query('SELECT id, email, name FROM users WHERE id = $1', [payload.userId]);
       if (!result.rows.length) return reply.status(401).send({ error: 'User not found' });
 
-      const gw = await query('SELECT auth_token, status, last_seen_at FROM gateways WHERE user_id = $1 LIMIT 1', [payload.userId]);
+      const gw = await query('SELECT status, last_seen_at FROM gateways WHERE user_id = $1 LIMIT 1', [payload.userId]);
 
       return {
         user: result.rows[0],
