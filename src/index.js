@@ -11,7 +11,11 @@ const app = Fastify({ logger: true });
 
 // Plugins
 await app.register(cors, { origin: [config.corsOrigin, 'http://localhost:3000', 'http://localhost:8080'] });
-await app.register(rateLimit, { max: 100, timeWindow: '1 minute' });
+await app.register(rateLimit, {
+  max: 200,
+  timeWindow: '1 minute',
+  allowList: (req) => req.url === '/health',
+});
 await app.register(websocket);
 
 // Routes
@@ -28,7 +32,7 @@ app.get('/', () => ({ name: 'GlowOS Broker', version: '1.0.0' }));
 async function shutdown(signal) {
   app.log.info(`${signal} received, shutting down...`);
   try {
-    await app.close(); // closes HTTP server + all WebSocket connections
+    await app.close();
   } catch (err) {
     app.log.error('Error during close:', err);
   }

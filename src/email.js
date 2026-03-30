@@ -81,3 +81,37 @@ export async function sendPairingCode(email, name, code) {
     `
   });
 }
+
+export async function sendPasswordReset(email, name, resetUrl) {
+  return sendEmail({
+    to: email,
+    subject: '🔑 Reset your GlowOS password',
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:600px;margin:0 auto;background:#0a0a1a;color:#f0f0f5;padding:40px;border-radius:16px;">
+        <h1 style="background:linear-gradient(135deg,#6c5ce7,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:32px;margin-bottom:8px;">GlowOS</h1>
+        <p style="color:rgba(255,255,255,0.6);margin-bottom:24px;">Password Reset</p>
+        <h2 style="color:#f0f0f5;font-size:20px;">Hey ${escapeHtml(name)},</h2>
+        <p style="color:rgba(255,255,255,0.7);line-height:1.6;">We received a request to reset your password. Click the button below to choose a new one. This link expires in 1 hour.</p>
+        <a href="${escapeHtml(resetUrl)}" style="display:inline-block;margin-top:24px;padding:14px 32px;background:linear-gradient(135deg,#6c5ce7,#a855f7);color:#fff;text-decoration:none;border-radius:12px;font-weight:600;font-size:16px;">Reset Password</a>
+        <p style="color:rgba(255,255,255,0.4);font-size:13px;margin-top:24px;line-height:1.5;">If you didn't request this, you can safely ignore this email. Your password won't change.</p>
+        <p style="color:rgba(255,255,255,0.3);font-size:12px;margin-top:32px;">GlowOS by Ashbi • Your AI runs locally, stays private.</p>
+      </div>
+    `
+  });
+}
+
+export async function sendGoodbye(email, name) {
+  return sendEmail({
+    to: email,
+    subject: '👋 Your GlowOS account has been deleted',
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:600px;margin:0 auto;background:#0a0a1a;color:#f0f0f5;padding:40px;border-radius:16px;">
+        <h1 style="background:linear-gradient(135deg,#6c5ce7,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:32px;margin-bottom:8px;">GlowOS</h1>
+        <h2 style="color:#f0f0f5;font-size:20px;">Goodbye ${escapeHtml(name)},</h2>
+        <p style="color:rgba(255,255,255,0.7);line-height:1.6;">Your GlowOS account and all associated data have been permanently deleted as requested.</p>
+        <p style="color:rgba(255,255,255,0.7);line-height:1.6;">If you ever want to come back, you're always welcome to create a new account at <a href="https://getglowos.com" style="color:#a855f7;">getglowos.com</a>.</p>
+        <p style="color:rgba(255,255,255,0.3);font-size:12px;margin-top:32px;">GlowOS by Ashbi</p>
+      </div>
+    `
+  });
+}
